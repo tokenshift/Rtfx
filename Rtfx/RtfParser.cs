@@ -105,25 +105,40 @@ namespace Rtfx {
         /// </summary>
         /// <returns>Null if there is nothing left to read.</returns>
         public static ReadEvent ReadNext(StringBuffer buffer) {
-            var signal = buffer.CharAt(0);
-
-            switch (signal) {
-                case null:
-                    return null;
-                case '{':
-                    return ReadGroupStart(buffer);
-                case '}':
-                    return ReadGroupEnd(buffer);
-                case '\\':
-                    var next = buffer.CharAt(1);
-                    if (IsAsciiLetter(next)) {
-                        return ReadControlWord(buffer);
-                    }
-                    else {
+            while (true) {
+                var signal = buffer.CharAt(0);
+                switch (signal) {
+                    case null:
+                        // Reached end of input.
+                        return null;
+                    case '{':
+                        // Start of new group.
+                        return ReadGroupStart(buffer);
+                    case '}':
+                        // End of current group.
+                        return ReadGroupEnd(buffer);
+                    case '\\':
+                        // Control word or symbol.
+                        var next = buffer.CharAt(1);
+                        if (IsAsciiLetter(next) || next == '*') {
+                            return ReadControlWord(buffer);
+                        }
+                        else {
+                            // Control symbols are handled as spans.
+                            return ReadSpan(buffer);
+                        }
+                    case '\n':
+                    case '\r':
+                        // CR/LF should be ignored by RTF readers.
+                        buffer.Discard(1);
+                        break;
+                    case '\0':
+                        // EOF indicator.
+                        return null;
+                    default:
+                        // Anything else is plain text.
                         return ReadSpan(buffer);
-                    }
-                default:
-                    return ReadSpan(buffer);
+                }
             }
         }
 
