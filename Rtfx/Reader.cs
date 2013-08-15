@@ -29,7 +29,7 @@ namespace Rtfx {
         /// Null if the end of the input has been reached.
         /// </returns>
         public ReadEvent Next() {
-            throw new NotImplementedException();
+            return RtfParser.ReadNext(_buffer);
         }
 
         #endregion

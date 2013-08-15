@@ -19,7 +19,8 @@ namespace Rtfx.Test {
             Assert.IsNull(events[0].Text);
 
             Assert.AreEqual(EventType.ControlWord, events[1].Type);
-            Assert.AreEqual("rtf1", events[1].Text);
+            Assert.AreEqual("rtf", events[1].Text);
+            Assert.AreEqual(1, events[1].Parameter);
 
             Assert.AreEqual(EventType.GroupEnd, events[2].Type);
             Assert.IsNull(events[2].Text);
@@ -40,7 +41,8 @@ namespace Rtfx.Test {
             Assert.IsNull(events[0].Text);
 
             Assert.AreEqual(EventType.ControlWord, events[1].Type);
-            Assert.AreEqual("rtf1", events[1].Text);
+            Assert.AreEqual("rtf", events[1].Text);
+            Assert.AreEqual(1, events[1].Parameter);
 
             Assert.AreEqual(EventType.ControlWord, events[2].Type);
             Assert.AreEqual("pard", events[2].Text);
@@ -73,7 +75,8 @@ namespace Rtfx.Test {
             Assert.IsNull(events[0].Text);
 
             Assert.AreEqual(EventType.ControlWord, events[1].Type);
-            Assert.AreEqual("rtf1", events[1].Text);
+            Assert.AreEqual("rtf", events[1].Text);
+            Assert.AreEqual(1, events[1].Parameter);
 
             Assert.AreEqual(EventType.ControlWord, events[2].Type);
             Assert.AreEqual("pard", events[2].Text);

@@ -5,9 +5,21 @@ namespace Rtfx.Test {
     [TestClass]
     public class TestRtfParser {
         [TestMethod]
+        public void TestReadSpan() {
+            using (var input = new StringBuffer(new StringReader(@"This is a test\par"))) {
+                var span = RtfParser.ReadSpan(input);
+
+                Assert.AreEqual(EventType.Span, span.Type);
+                Assert.AreEqual("This is a test", span.Text);
+
+                Assert.AreEqual('\\', input.CharAt(0));
+            }
+        }
+
+        [TestMethod]
         public void TestReadControlWord() {
             using (var input = new StringBuffer(new StringReader(@"\test "))) {
-                var word = Rtfx.RtfParser.ReadControlWord(input);
+                var word = RtfParser.ReadControlWord(input);
 
                 Assert.AreEqual(EventType.ControlWord, word.Type);
                 Assert.AreEqual("test", word.Text);
@@ -18,7 +30,7 @@ namespace Rtfx.Test {
             }
 
             using (var input = new StringBuffer(new StringReader(@"\test\foo"))) {
-                var word = Rtfx.RtfParser.ReadControlWord(input);
+                var word = RtfParser.ReadControlWord(input);
 
                 Assert.AreEqual(EventType.ControlWord, word.Type);
                 Assert.AreEqual("test", word.Text);
@@ -29,7 +41,7 @@ namespace Rtfx.Test {
             }
 
             using (var input = new StringBuffer(new StringReader(@"\test12345 "))) {
-                var word = Rtfx.RtfParser.ReadControlWord(input);
+                var word = RtfParser.ReadControlWord(input);
 
                 Assert.AreEqual(EventType.ControlWord, word.Type);
                 Assert.AreEqual("test", word.Text);
@@ -40,7 +52,7 @@ namespace Rtfx.Test {
             }
 
             using (var input = new StringBuffer(new StringReader(@"\test-42foo"))) {
-                var word = Rtfx.RtfParser.ReadControlWord(input);
+                var word = RtfParser.ReadControlWord(input);
 
                 Assert.AreEqual(EventType.ControlWord, word.Type);
                 Assert.AreEqual("test", word.Text);
@@ -54,7 +66,7 @@ namespace Rtfx.Test {
         [TestMethod]
         public void TestReadStarredControlWord() {
             using (var input = new StringBuffer(new StringReader(@"\*\test-42foo"))) {
-                var word = Rtfx.RtfParser.ReadControlWord(input);
+                var word = RtfParser.ReadControlWord(input);
 
                 Assert.AreEqual(EventType.ControlWord, word.Type);
                 Assert.AreEqual("test", word.Text);
@@ -69,7 +81,7 @@ namespace Rtfx.Test {
         [TestMethod]
         public void TestReadGroupStart() {
             using (var input = new StringBuffer(new StringReader(@"{stuff goes here}"))) {
-                var token = Rtfx.RtfParser.ReadGroupStart(input);
+                var token = RtfParser.ReadGroupStart(input);
 
                 Assert.AreEqual(EventType.GroupStart, token.Type);
                 Assert.IsNull(token.Text);
@@ -80,7 +92,7 @@ namespace Rtfx.Test {
 
             using (var input = new StringBuffer(new StringReader(@"stuff goes here}"))) {
                 AlsoAssert.Throws<ParseException>(() =>
-                    Rtfx.RtfParser.ReadGroupStart(input));
+                    RtfParser.ReadGroupStart(input));
             }
         }
     }
