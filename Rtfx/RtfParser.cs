@@ -8,8 +8,30 @@ namespace Rtfx {
     /// Utility class to consume specific tokens/entities from an RTF file.
     /// </summary>
     internal static class RtfParser {
+        /// <summary>
+        /// Reads binary data from the input stream.
+        /// </summary>
+        /// <param name="buffer">
+        /// The input stream that the data will be read from.
+        /// </param>
+        /// <param name="length">
+        /// The amount of data to be read.
+        /// </param>
         public static ReadEvent ReadBinary(InputBuffer buffer, int length) {
-            throw new NotImplementedException();
+            if (length < 0) {
+                throw new ArgumentOutOfRangeException("length");
+            }
+
+            var data = new ReadEvent();
+            data.Type = EventType.Binary;
+            data.Data = buffer.Consume(length);
+
+            if (data.Data.Length != length) {
+                throw new ParseException(string.Format(@"\bin{0} specified, got {1} bytes of data.", length,
+                    data.Data.Length));
+            }
+
+            return data;
         }
 
         /// <summary>
@@ -29,8 +51,7 @@ namespace Rtfx {
         /// * Any character other than a letter or digit: not consumed as part of
         /// the control word.
         /// </remarks>
-        public static ReadEvent ReadControlWord(InputBuffer buffer)
-        {
+        public static ReadEvent ReadControlWord(InputBuffer buffer) {
             if (buffer.At(0) != '\\') {
                 throw new ParseException("Expected control word");
             }
@@ -125,10 +146,10 @@ namespace Rtfx {
                     case (byte) '{':
                         // Start of new group.
                         return ReadGroupStart(buffer);
-                    case (byte)'}':
+                    case (byte) '}':
                         // End of current group.
                         return ReadGroupEnd(buffer);
-                    case (byte)'\\':
+                    case (byte) '\\':
                         // Control word or symbol.
                         var next = buffer.At(1);
                         if (IsAsciiLetter(next) || next == '*') {
@@ -144,12 +165,12 @@ namespace Rtfx {
                             // Control symbols are handled as spans.
                             return ReadSpan(buffer);
                         }
-                    case (byte)'\n':
-                    case (byte)'\r':
+                    case (byte) '\n':
+                    case (byte) '\r':
                         // CR/LF should be ignored by RTF readers.
                         buffer.Discard(1);
                         break;
-                    case (byte)'\0':
+                    case (byte) '\0':
                         // EOF indicator.
                         return null;
                     default:

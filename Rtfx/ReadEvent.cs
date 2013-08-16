@@ -36,6 +36,11 @@ namespace Rtfx {
         /// </summary>
         public Int32? Parameter { get; set; }
 
+        /// <summary>
+        /// Consumed binary data.
+        /// </summary>
+        public byte[] Data { get; set; }
+
         public override string ToString() {
             return Text == null ? string.Format("{{{0}}}", Type) : string.Format("{{{0}:{1}}}", Type, Text);
         }
