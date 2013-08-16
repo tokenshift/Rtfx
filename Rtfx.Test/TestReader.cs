@@ -7,7 +7,7 @@ namespace Rtfx.Test {
         [TestMethod]
         public void TestEmptyDocument() {
             var events = new List<ReadEvent>();
-            using (var reader = Reader.Create(Resource.Reader("Rtfx.Test.TestData.TestDocument000.rtf"))) {
+            using (var reader = Reader.Create(Resource.Stream("Rtfx.Test.TestData.TestDocument000.rtf"))) {
                 events.AddRange(reader.Read());
             }
 
@@ -29,7 +29,7 @@ namespace Rtfx.Test {
         [TestMethod]
         public void TestParagraphs() {
             var events = new List<ReadEvent>();
-            using (var reader = Reader.Create(Resource.Reader("Rtfx.Test.TestData.TestDocument001.rtf"))) {
+            using (var reader = Reader.Create(Resource.Stream("Rtfx.Test.TestData.TestDocument001.rtf"))) {
                 events.AddRange(reader.Read());
             }
 
@@ -63,7 +63,7 @@ namespace Rtfx.Test {
         [TestMethod]
         public void TestEscapeCharacters() {
             var events = new List<ReadEvent>();
-            using (var reader = Reader.Create(Resource.Reader("Rtfx.Test.TestData.TestDocument002.rtf"))) {
+            using (var reader = Reader.Create(Resource.Stream("Rtfx.Test.TestData.TestDocument002.rtf"))) {
                 events.AddRange(reader.Read());
             }
 

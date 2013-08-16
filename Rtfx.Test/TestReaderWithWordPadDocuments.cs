@@ -5,7 +5,7 @@ namespace Rtfx.Test {
     public class TestReaderWithWordPadDocuments {
         [TestMethod]
         public void TestEmptyDocument() {
-            using (var reader = Reader.Create(Resource.Reader("Rtfx.Test.TestData.EmptyDocument.rtf"))) {
+            using (var reader = Reader.Create(Resource.Stream("Rtfx.Test.TestData.EmptyDocument.rtf"))) {
                 AlsoAssert.GroupStart(reader);
                 AlsoAssert.ControlWord(reader, "rtf", 1);
                 AlsoAssert.ControlWord(reader, "ansi");
@@ -43,7 +43,7 @@ namespace Rtfx.Test {
 
         [TestMethod]
         public void TestShortText() {
-            using (var reader = Reader.Create(Resource.Reader("Rtfx.Test.TestData.ShortText.rtf"))) {
+            using (var reader = Reader.Create(Resource.Stream("Rtfx.Test.TestData.ShortText.rtf"))) {
                 AlsoAssert.GroupStart(reader);
                 AlsoAssert.ControlWord(reader, "rtf", 1);
                 AlsoAssert.ControlWord(reader, "ansi");
@@ -82,7 +82,7 @@ namespace Rtfx.Test {
 
         [TestMethod]
         public void TestSpanFormatting() {
-            using (var reader = Reader.Create(Resource.Reader("Rtfx.Test.TestData.SpanFormatting.rtf"))) {
+            using (var reader = Reader.Create(Resource.Stream("Rtfx.Test.TestData.SpanFormatting.rtf"))) {
                 AlsoAssert.GroupStart(reader);
                 AlsoAssert.ControlWord(reader, "rtf", 1);
                 AlsoAssert.ControlWord(reader, "ansi");
@@ -137,7 +137,7 @@ namespace Rtfx.Test {
 
         [TestMethod]
         public void TestMultipleParagraphs() {
-            using (var reader = Reader.Create(Resource.Reader("Rtfx.Test.TestData.MultipleParagraphs.rtf"))) {
+            using (var reader = Reader.Create(Resource.Stream("Rtfx.Test.TestData.MultipleParagraphs.rtf"))) {
                 AlsoAssert.GroupStart(reader);
                 AlsoAssert.ControlWord(reader, "rtf", 1);
                 AlsoAssert.ControlWord(reader, "ansi");

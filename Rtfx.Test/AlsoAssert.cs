@@ -7,6 +7,15 @@ namespace Rtfx.Test {
     /// </summary>
     public static class AlsoAssert {
         /// <summary>
+        /// Verifies that the two arrays contain identical contents.
+        /// </summary>
+        public static void AreEqual<T>(T[] expected, T[] actual) {
+            Assert.AreEqual(expected.Length, actual.Length, "Array lengths differed.");
+            for (var i = 0; i < expected.Length; ++i) {
+                Assert.AreEqual(expected[i], actual[i], "Arrays differed at index {0}.", i);
+            }
+        }
+        /// <summary>
         /// Validates that the expected exception is thrown.
         /// </summary>
         public static void Throws<TException>(Action action) {

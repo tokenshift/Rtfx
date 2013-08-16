@@ -7,7 +7,7 @@ namespace Rtfx {
     /// Reads and parses an RTF document
     /// </summary>
     public class Reader : IDisposable {
-        private readonly StringBuffer _buffer;
+        private readonly InputBuffer _buffer;
 
         public void Dispose() {
             _buffer.Dispose();
@@ -34,16 +34,16 @@ namespace Rtfx {
 
         #endregion
 
-        private Reader(TextReader input) {
-            _buffer = new StringBuffer(input);
+        private Reader(Stream input) {
+            _buffer = new InputBuffer(input);
         }
 
         #region Factory Methods
 
         /// <summary>
-        /// Create an RTF reader from the specified text input.
+        /// Create an RTF reader from the specified input stream.
         /// </summary>
-        public static Reader Create(TextReader input) {
+        public static Reader Create(Stream input) {
             return new Reader(input);
         }
 

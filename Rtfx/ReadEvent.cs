@@ -5,6 +5,7 @@ namespace Rtfx {
     /// The type of a token parsed from an RTF file.
     /// </summary>
     public enum EventType {
+        Binary,
         ControlWord,
         GroupStart,
         GroupEnd,

@@ -1,4 +1,5 @@
 ﻿using System.IO;
+using System.Text;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Rtfx.Test {
@@ -6,19 +7,19 @@ namespace Rtfx.Test {
     public class TestRtfParser {
         [TestMethod]
         public void TestReadSpan() {
-            using (var input = new StringBuffer(new StringReader(@"This is a test\par"))) {
+            using (var input = StringStream(@"This is a test\par")) {
                 var span = RtfParser.ReadSpan(input);
 
                 Assert.AreEqual(EventType.Span, span.Type);
                 Assert.AreEqual("This is a test", span.Text);
 
-                Assert.AreEqual('\\', input.CharAt(0));
+                Assert.AreEqual((byte) '\\', input.At(0));
             }
         }
 
         [TestMethod]
         public void TestReadControlWord() {
-            using (var input = new StringBuffer(new StringReader(@"\test "))) {
+            using (var input = StringStream(@"\test ")) {
                 var word = RtfParser.ReadControlWord(input);
 
                 Assert.AreEqual(EventType.ControlWord, word.Type);
@@ -26,10 +27,10 @@ namespace Rtfx.Test {
                 Assert.IsNull(word.Parameter);
 
                 // Space should have been consumed.
-                Assert.IsNull(input.CharAt(0));
+                Assert.IsNull(input.At(0));
             }
 
-            using (var input = new StringBuffer(new StringReader(@"\test\foo"))) {
+            using (var input = StringStream(@"\test\foo")) {
                 var word = RtfParser.ReadControlWord(input);
 
                 Assert.AreEqual(EventType.ControlWord, word.Type);
@@ -37,10 +38,10 @@ namespace Rtfx.Test {
                 Assert.IsNull(word.Parameter);
 
                 // Slash should not have been consumed.
-                Assert.AreEqual('\\', input.CharAt(0));
+                Assert.AreEqual((byte) '\\', input.At(0));
             }
 
-            using (var input = new StringBuffer(new StringReader(@"\test12345 "))) {
+            using (var input = StringStream(@"\test12345 ")) {
                 var word = RtfParser.ReadControlWord(input);
 
                 Assert.AreEqual(EventType.ControlWord, word.Type);
@@ -48,10 +49,10 @@ namespace Rtfx.Test {
                 Assert.AreEqual(12345, word.Parameter);
 
                 // Space should have been consumed.
-                Assert.IsNull(input.CharAt(0));
+                Assert.IsNull(input.At(0));
             }
 
-            using (var input = new StringBuffer(new StringReader(@"\test-42foo"))) {
+            using (var input = StringStream(@"\test-42foo")) {
                 var word = RtfParser.ReadControlWord(input);
 
                 Assert.AreEqual(EventType.ControlWord, word.Type);
@@ -59,13 +60,13 @@ namespace Rtfx.Test {
                 Assert.AreEqual(-42, word.Parameter);
 
                 // Delimiter should not have been consumed.
-                Assert.AreEqual('f', input.CharAt(0));
+                Assert.AreEqual((byte) 'f', input.At(0));
             }
         }
 
         [TestMethod]
         public void TestReadStarredControlWord() {
-            using (var input = new StringBuffer(new StringReader(@"\*\test-42foo"))) {
+            using (var input = StringStream(@"\*\test-42foo")) {
                 var word = RtfParser.ReadControlWord(input);
 
                 Assert.AreEqual(EventType.ControlWord, word.Type);
@@ -74,26 +75,30 @@ namespace Rtfx.Test {
                 Assert.IsTrue(word.Starred);
 
                 // Delimiter should not have been consumed.
-                Assert.AreEqual('f', input.CharAt(0));
+                Assert.AreEqual((byte) 'f', input.At(0));
             }
         }
 
         [TestMethod]
         public void TestReadGroupStart() {
-            using (var input = new StringBuffer(new StringReader(@"{stuff goes here}"))) {
+            using (var input = StringStream(@"{stuff goes here}")) {
                 var token = RtfParser.ReadGroupStart(input);
 
                 Assert.AreEqual(EventType.GroupStart, token.Type);
                 Assert.IsNull(token.Text);
                 Assert.IsNull(token.Parameter);
 
-                Assert.AreEqual('s', input.CharAt(0));
+                Assert.AreEqual((byte) 's', input.At(0));
             }
 
-            using (var input = new StringBuffer(new StringReader(@"stuff goes here}"))) {
+            using (var input = StringStream(@"stuff goes here}")) {
                 AlsoAssert.Throws<ParseException>(() =>
                     RtfParser.ReadGroupStart(input));
             }
+        }
+
+        private InputBuffer StringStream(string input) {
+            return new InputBuffer(new MemoryStream(Encoding.UTF8.GetBytes(input)));
         }
     }
 }

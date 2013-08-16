@@ -1,42 +1,37 @@
 ﻿using System;
 using System.IO;
-using System.Linq;
-using System.Text.RegularExpressions;
 
 namespace Rtfx {
     /// <summary>
-    /// Provides buffered text reading and lookahead.
+    /// Provides buffered input reading and lookahead.
     /// </summary>
-    public class StringBuffer : IDisposable {
-        private char[] _buffer;
-        private bool _eof = false;
+    public class InputBuffer : IDisposable {
+        private byte[] _buffer;
+        private bool _eof;
         private const int InitialSize = 1024;
-        private int _length = 0;
-        private int _offset = 0;
-        private readonly TextReader _input;
-
-        public int CurrentLine { get; private set; }
-        public int CurrentColumn { get; private set; }
+        private int _length;
+        private int _offset;
+        private readonly Stream _input;
 
         /// <summary>
-        /// Gets the character at the specified index.
+        /// Gets the byte at the specified index.
         /// </summary>
-        public char this[int index] {
+        public byte this[int index] {
             get {
-                var c = CharAt(index);
-                if (c == null) {
+                var b = At(index);
+                if (b == null) {
                     throw new ArgumentOutOfRangeException("index");
                 }
 
-                return c.Value;
+                return b.Value;
             }
         }
 
         /// <summary>
-        /// Gets the character at the specified index.
+        /// Gets the byte at the specified index.
         /// </summary>
         /// <returns>Null if the index is out of range.</returns>
-        public char? CharAt(int index) {
+        public Byte? At(int index) {
             if (index < 0) {
                 throw new ArgumentOutOfRangeException("index");
             }
@@ -57,18 +52,18 @@ namespace Rtfx {
         }
 
         /// <summary>
-        /// Returns a string containing the first N characters
-        /// of the buffer, and discards those characters from
+        /// Returns a byte array containing the first N bytes
+        /// of the buffer, and discards those bytes from
         /// the buffer.
         /// </summary>
-        /// <param name="count">The number of characters to read and discard.</param>
-        public string Consume(int count) {
+        /// <param name="count">The number of bytes to read and discard.</param>
+        public byte[] Consume(int count) {
             if (count < 0) {
                 throw new ArgumentOutOfRangeException("count");
             }
 
             if (count == 0) {
-                return "";
+                return new byte[0];
             }
 
             while (_offset + count >= _length && !_eof) {
@@ -77,51 +72,50 @@ namespace Rtfx {
 
             count = Math.Min(count, _length - _offset);
 
-            var result = new string(_buffer, _offset, count);
+            var result = GetBufferFragment(_offset, count);
             _offset += count;
             return result;
         }
 
         /// <summary>
-        /// Consumes all characters until one of the specified
-        /// characters is encountered.
+        /// Consumes all bytes until the specified predicate is matched.
+        /// </summary>
+        /// <param name="pred">A predicate that will be called with each byte.</param>
+        /// <returns>An array containing all of the bytes until the predicate was matched.</returns>
+        public byte[] ConsumeUntil(Func<byte, bool> pred) {
+            return ConsumeWhile(b => !pred(b));
+        }
+
+        /// <summary>
+        /// Consumes all bytes until the specified byte is encountered.
         /// </summary>
         /// <remarks>
         /// If EOF is encountered before a matching character is found, will
         /// return everything until EOF.
         /// </remarks>
-        public string ConsumeUntil(params char[] characters) {
-            if (characters == null) {
-                throw new ArgumentNullException("characters");
-            }
-
-            if (characters.Length == 0) {
-                throw new ArgumentException("At least one character must be specified.");
-            }
-
+        public byte[] ConsumeUntil(byte signal) {
             int i;
-            char? c;
-            for (i = 0; (c = CharAt(i)).HasValue && !characters.Contains(c.Value); ++i) {}
+
+            for (i = 0; At(i) != signal; ++i) {}
 
             return Consume(i);
         }
 
         /// <summary>
-        /// Consumes all characters until the specified text
-        /// is found.
+        /// Consumes all bytes until the specified byte sequence is found.
         /// </summary>
-        public string ConsumeUntil(string text) {
-            if (text == null) {
-                throw new ArgumentNullException("text");
+        public byte[] ConsumeUntil(byte[] sequence) {
+            if (sequence == null) {
+                throw new ArgumentNullException("sequence");
             }
 
-            if (text.Length == 0) {
-                return "";
+            if (sequence.Length == 0) {
+                return new byte[0];
             }
 
             int i;
-            for (i = 0; CharAt(i).HasValue; ++i) {
-                if (BufferMatches(i, text)) {
+            for (i = 0; At(i).HasValue; ++i) {
+                if (BufferMatches(i, sequence)) {
                     return Consume(i);
                 }
             }
@@ -130,53 +124,30 @@ namespace Rtfx {
         }
 
         /// <summary>
-        /// Consumes all characters until the specified regular expression
-        /// is matched.
+        /// Consumes all bytes that match the specified predicate.
         /// </summary>
-        public string ConsumeUntil(Regex pattern) {
-            if (pattern == null) {
-                throw new ArgumentNullException("pattern");
-            }
-
-            Match match;
-            while (!(match = pattern.Match(new string(_buffer, _offset, _length - _offset))).Success && !_eof) {
-                ReadMore();
-            }
-
-            if (match.Success) {
-                return Consume(match.Index);
-            }
-
-            return Consume(_length - _offset);
-        }
-
-        /// <summary>
-        /// Consumes all characters that match the specified predicate.
-        /// </summary>
-        /// <param name="pred">A predicate that will be called with each character.</param>
-        /// <returns>A string containing all of the characters that matched the predicate.</returns>
-        public string ConsumeWhile(Func<char, bool> pred) {
+        /// <param name="pred">A predicate that will be called with each byte.</param>
+        /// <returns>An array containing all of the bytes that matched the predicate.</returns>
+        public byte[] ConsumeWhile(Func<byte, bool> pred) {
             if (pred == null) {
                 throw new ArgumentNullException("pred");
             }
 
             int i;
-            char? c;
-            for (i = 0; (c = CharAt(i)).HasValue && pred(c.Value); ++i) {}
+            byte? b;
+            for (i = 0; (b = At(i)).HasValue && pred(b.Value); ++i) {}
 
             return Consume(i);
         }
 
         /// <summary>
-        /// Consumes all characters that match the specified predicate.
+        /// Consumes all bytes that match the specified predicate.
         /// </summary>
-        /// <param name="pred">A predicate that will be called with each character.</param>
-        /// <param name="maxLength">The maximum length of the string that will be consumed.</param>
-        /// <returns>A string containing all of the characters that matched the predicate.</returns>
-        public string ConsumeWhile(Func<char, bool> pred, int maxLength)
-        {
-            if (pred == null)
-            {
+        /// <param name="pred">A predicate that will be called with each byte.</param>
+        /// <param name="maxLength">The maximum length of the array that will be consumed.</param>
+        /// <returns>An array containing all of the bytes that matched the predicate.</returns>
+        public byte[] ConsumeWhile(Func<byte, bool> pred, int maxLength) {
+            if (pred == null) {
                 throw new ArgumentNullException("pred");
             }
 
@@ -185,16 +156,16 @@ namespace Rtfx {
             }
 
             int i;
-            char? c;
-            for (i = 0; i < maxLength && (c = CharAt(i)).HasValue && pred(c.Value); ++i) { }
+            byte? b;
+            for (i = 0; i < maxLength && (b = At(i)).HasValue && pred(b.Value); ++i) {}
 
             return Consume(i);
         }
 
         /// <summary>
-        /// Discards the specified number of characters from the buffer.
+        /// Discards the specified number of bytes from the buffer.
         /// </summary>
-        /// <param name="count">The number of characters to discard.</param>
+        /// <param name="count">The number of bytes to discard.</param>
         public void Discard(int count) {
             if (count < 0) {
                 throw new ArgumentOutOfRangeException("count");
@@ -229,11 +200,11 @@ namespace Rtfx {
         }
 
         /// <summary>
-        /// Returns a section of the buffer as a string.
+        /// Returns a section of the buffer as a byte array.
         /// </summary>
-        /// <param name="offset">The starting index of the string in the buffer.</param>
-        /// <param name="length">The length of the string to return.</param>
-        public string Span(int offset, int length) {
+        /// <param name="offset">The starting index of the byte array in the buffer.</param>
+        /// <param name="length">The length of the byte array to return.</param>
+        public byte[] Span(int offset, int length) {
             if (offset < 0) {
                 throw new ArgumentOutOfRangeException("offset");
             }
@@ -243,7 +214,7 @@ namespace Rtfx {
             }
 
             if (length == 0) {
-                return "";
+                return new byte[0];
             }
 
             while (_offset + offset + length >= _length && !_eof) {
@@ -255,25 +226,25 @@ namespace Rtfx {
             }
 
             var count = Math.Min(length, _length - _offset - offset);
-            return new string(_buffer, _offset + offset, count);
+            return GetBufferFragment(_offset + offset, count);
         }
 
         /// <summary>
-        /// Returns the first N characters of the buffer as a string.
+        /// Returns the first N bytes of the buffer as an array.
         /// </summary>
-        /// <param name="length">The number of characters to return.</param>
-        public string Span(int length) {
+        /// <param name="length">The number of bytes to return.</param>
+        public byte[] Span(int length) {
             return Span(0, length);
         }
 
         #region Constructors
 
-        public StringBuffer(TextReader input) : this(input, InitialSize) {}
+        public InputBuffer(Stream input) : this(input, InitialSize) {}
 
-        public StringBuffer(TextReader input, int initialSize) {
+        public InputBuffer(Stream input, int initialSize) {
             if (initialSize < 0) throw new ArgumentException("Buffer size must be greater than 0.");
 
-            _buffer = new char[initialSize];
+            _buffer = new byte[initialSize];
             _input = input;
         }
 
@@ -282,21 +253,34 @@ namespace Rtfx {
         #region Helper Methods
 
         /// <summary>
-        /// Checks whether an input string is found at the specified
+        /// Checks whether an input sequence is found at the specified
         /// location in the buffer.
         /// </summary>
         /// <param name="offset">The index in the buffer to check at.</param>
-        /// <param name="text">The text to match.</param>
-        /// <returns>True if the specified text was found at the exact location.</returns>
-        private bool BufferMatches(int offset, string text) {
-            for (var i = 0; i < text.Length; ++i) {
-                var c = CharAt(offset + i);
-                if (!c.HasValue || c.Value != text[i]) {
+        /// <param name="sequence">The sequence to match.</param>
+        /// <returns>True if the specified sequence was found at the exact location.</returns>
+        private bool BufferMatches(int offset, byte[] sequence) {
+            for (var i = 0; i < sequence.Length; ++i) {
+                var b = At(offset + i);
+                if (!b.HasValue || b.Value != sequence[i]) {
                     return false;
                 }
             }
 
             return true;
+        }
+
+        /// <summary>
+        /// Gets a portion of the current buffer.
+        /// </summary>
+        /// <param name="offset">Where to start copying the buffer.</param>
+        /// <param name="length">The number of bytes to copy.</param>
+        private byte[] GetBufferFragment(int offset, int length) {
+            var fragment = new byte[length];
+
+            Array.Copy(_buffer, offset, fragment, 0, length);
+
+            return fragment;
         }
 
         /// <summary>
@@ -321,7 +305,7 @@ namespace Rtfx {
             }
 
             // Discard consumed characters.
-            var buffer = new char[bufferSize];
+            var buffer = new byte[bufferSize];
             Array.Copy(_buffer, _offset, buffer, 0, _length - _offset);
             _length = _length - _offset;
             _offset = 0;
