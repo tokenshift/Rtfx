@@ -1,5 +1,4 @@
-﻿using System;
-using System.IO;
+﻿using System.IO;
 using System.Text;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
@@ -20,7 +19,12 @@ namespace Rtfx.Test {
 
         [TestMethod]
         public void TestWriteUnicodeSpan() {
-            throw new NotImplementedException();
+            var buffer = new MemoryStream();
+
+            using (var writer = new Writer(buffer)) {
+                AlsoAssert.Throws<OutputException>(() =>
+                    writer.Span("Testing \uD83D\uDF1F Testing"));
+            }
         }
 
         [TestMethod]

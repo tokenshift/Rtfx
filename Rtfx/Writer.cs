@@ -11,7 +11,7 @@ namespace Rtfx
         private readonly Stream _output;
         private readonly TextWriter _writer;
 
-        private static readonly char[] _escapeChars = new[] {
+        private static readonly char[] _escapeChars = {
             '{',
             '}',
             '\\'
@@ -86,8 +86,27 @@ namespace Rtfx
             for (start = 0, end = 0; end < text.Length; ++end) {
                 if (_escapeChars.Contains(text[end])) {
                     _writer.Write(text.Substring(start, end - start));
+
+                    // Write control symbol.
                     _writer.Write('\\');
                     _writer.Write(text[end]);
+                    start = end = end + 1;
+                }
+                else if (text[end] > 127) {
+                    _writer.Write(text.Substring(start, end - start));
+
+                    // Write unicode character.
+                    var val = Convert.ToInt32(text[end]);
+                    if (char.IsSurrogate(text[end])) {
+                        if (end + 1 < text.Length) {
+                            throw new OutputException("Surrogate pairs are not currently supported; write the unicode control word directly.");
+                        }
+                        else {
+                            throw new OutputException("Unfinished surrogate pair encountered.");
+                        }
+                    }
+                    
+                    _writer.Write(@"\u{0}?", val);
                     start = end = end + 1;
                 }
             }
