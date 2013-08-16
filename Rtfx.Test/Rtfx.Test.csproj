@@ -57,6 +57,7 @@
     <Compile Include="TestReaderWithWordPadDocuments.cs" />
     <Compile Include="TestRtfParser.cs" />
     <Compile Include="TestInputBuffer.cs" />
+    <Compile Include="TestWriter.cs" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="TestData\DocumentWithImage.rtf" />
