@@ -76,6 +76,9 @@
     <EmbeddedResource Include="TestData\William_Gibson_60th_birthday_portrait.jpg" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\Rtfx\Rtfx.csproj">
       <Project>{899275AF-C805-4EA8-8C99-32BC958065D2}</Project>
       <Name>Rtfx</Name>

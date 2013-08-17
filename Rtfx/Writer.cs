@@ -1,6 +1,7 @@
 ﻿using System;
 using System.IO;
 using System.Linq;
+using Harmful;
 
 namespace Rtfx
 {
@@ -96,18 +97,9 @@ namespace Rtfx
                     _writer.Write(text.Substring(start, end - start));
 
                     // Write unicode character.
-                    var val = Convert.ToInt32(text[end]);
-                    if (char.IsSurrogate(text[end])) {
-                        if (end + 1 < text.Length) {
-                            throw new OutputException("Surrogate pairs are not currently supported; write the unicode control word directly.");
-                        }
-                        else {
-                            throw new OutputException("Unfinished surrogate pair encountered.");
-                        }
-                    }
-                    
-                    _writer.Write(@"\u{0}?", val);
-                    start = end = end + 1;
+                    uint code;
+                    start = end = end + Utf16.ToCode(out code, text, end);
+                    _writer.Write(@"\u{0}?", code);
                 }
             }
 

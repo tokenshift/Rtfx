@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
+  <metadata>
+    <id>Harmful</id>
+    <version>0.1.1</version>
+    <title>Harmful</title>
+    <authors>Nathan Clark</authors>
+    <owners>Nathan Clark</owners>
+    <licenseUrl>https://raw.github.com/tokenshift/Harmful/master/LICENSE</licenseUrl>
+    <projectUrl>https://github.com/tokenshift/Harmful/</projectUrl>
+    <requireLicenseAcceptance>true</requireLicenseAcceptance>
+    <description>.NET library for working with UTF-16 character data.</description>
+    <releaseNotes />
+    <copyright />
+    <language />
+  </metadata>
+</package>

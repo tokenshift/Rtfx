@@ -22,9 +22,11 @@ namespace Rtfx.Test {
             var buffer = new MemoryStream();
 
             using (var writer = new Writer(buffer)) {
-                AlsoAssert.Throws<OutputException>(() =>
-                    writer.Span("Testing \uD83D\uDF1F Testing"));
+                writer.Span("Testing \uD83D\uDF1F Testing");
             }
+
+            var result = Encoding.UTF8.GetString(buffer.ToArray());
+            Assert.AreEqual(@"Testing \u128799? Testing", result);
         }
 
         [TestMethod]
