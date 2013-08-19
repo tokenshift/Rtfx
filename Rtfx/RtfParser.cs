@@ -210,25 +210,27 @@ namespace Rtfx {
                         // Control word or symbol.
                         var next = buffer.At(1);
                         if (IsAsciiLetter(next) || next == '*') {
-                            var word = ReadControlWord(buffer);
-                            if (word.Text == "bin" && word.Parameter.HasValue) {
-                                // Read binary data from the stream.
-                                return ReadBinary(buffer, word.Parameter.Value);
-                            }
-                            else if (word.Text == "u" && word.Parameter.HasValue && word.Parameter > 0) {
-                                // Consume unicode characters (control word '\u####?') as spans.
-                                // First character of next span will be replacement character; ignore.
-                                // Determine the UTF-16 representation of the code point.
-                                var span = ReadSpan(buffer);
-                                if (string.IsNullOrEmpty(span.Text)) {
-                                    throw new ParseException(
-                                        @"Encountered unicode control word ('\u####') with no replacement character.");
-                                }
+                            ControlWord word;
+                            int consumed;
 
-                                return new Span(Utf16.FromCode((uint) word.Parameter) + span.Text.Substring(1));
+                            if (ParseControlWord(buffer, 0, out word, out consumed)) {
+                                if (word.Text == "bin" && word.Parameter.HasValue) {
+                                    // Read binary data from the stream.
+                                    buffer.Discard(consumed);
+                                    return ReadBinary(buffer, word.Parameter.Value);
+                                }
+                                else if (word.Text == "u" && word.Parameter.HasValue) {
+                                    // Read unicode characters (control word \u####) as text.
+                                    return ReadSpan(buffer);
+                                }
+                                else {
+                                    // Return the control word as-is.
+                                    buffer.Discard(consumed);
+                                    return word;
+                                }
                             }
                             else {
-                                return word;
+                                throw new ParseException("Failed to parse control word.");
                             }
                         }
                         else {
