@@ -2,12 +2,113 @@
 using System.IO;
 using System.Linq;
 using System.Text;
+using Harmful;
 
 namespace Rtfx {
     /// <summary>
     /// Utility class to consume specific tokens/entities from an RTF file.
     /// </summary>
     internal static class RtfParser {
+        /// <summary>
+        /// Parses a control word from the input stream without consuming it.
+        /// </summary>
+        /// <param name="buffer">
+        /// The input stream that the control word will be read from.
+        /// </param>
+        /// <param name="offset">
+        /// The position in the input stream to start parsing.
+        /// </param>
+        /// <param name="word">
+        /// The parsed control word.
+        /// </param>
+        /// <param name="consumed">
+        /// The number of byes parsed.
+        /// </param>
+        /// <remarks>
+        /// A control word consists of a backslash followed by up to 32 ASCII
+        /// letters ([a-zA-Z]), followed by a delimiter. The delimiter can be
+        /// any of the following:
+        /// * Space: consumed with the control word.
+        /// * Numeric digit or '-': start of a numeric parameter for the control word.
+        /// The numeric parameter can be up to 10 numeric digits (not including the
+        /// minus sign), followed by any non-numeric character.
+        /// * Any character other than a letter or digit: not consumed as part of
+        /// the control word.
+        /// </remarks>
+        public static bool ParseControlWord(InputBuffer buffer, int offset, out ControlWord word, out int consumed) {
+            var startOffset = offset;
+
+            if (buffer.At(offset) != '\\') {
+                throw new ParseException("Expected control word");
+            }
+            ++offset;
+
+            if (buffer.At(offset) == '*') {
+                // Handle starred control word (e.g. "\*\foo").
+                ++offset;
+                if (ParseControlWord(buffer, offset, out word, out consumed)) {
+                    word = new ControlWord(word.Text, true, word.Parameter);
+                    consumed += offset;
+                    return true;
+                }
+                else {
+                    word = null;
+                    consumed = 0;
+                    return false;
+                }
+            }
+
+            int nameLength;
+            for (nameLength = 0; nameLength < 32 && IsAsciiLetter(buffer.At(nameLength + offset)); ++nameLength) {}
+            if (nameLength == 0 || nameLength > 32) {
+                word = null;
+                consumed = 0;
+                return false;
+            }
+
+            var name = Encoding.UTF8.GetString(buffer.Span(offset, nameLength), 0, nameLength);
+            int? param = null;
+
+            offset += nameLength;
+
+            var delim = buffer.At(offset);
+            if (IsNumericDigit(delim) || delim == '-') {
+                // Parse the numeric parameter.
+                if (delim == '-') {
+                    ++offset;
+                }
+
+                int paramLength;
+                for (paramLength = 0;
+                    paramLength < 10 &&
+                    IsNumericDigit(buffer.At(paramLength + offset));
+                    ++paramLength) {}
+
+                if (paramLength == 0) {
+                    throw new ParseException("Missing numeric parameter.");
+                }
+
+                param = int.Parse(Encoding.UTF8.GetString(buffer.Span(offset, paramLength), 0, paramLength));
+                if (delim == '-') {
+                    param *= -1;
+                }
+
+                offset += paramLength;
+            }
+
+            delim = buffer.At(offset);
+            if (delim == ' ') {
+                // Consume the delimiter.
+                ++offset;
+            }
+            // Otherwise, leave the delimiter where it is.
+
+            word = new ControlWord(name, false, param);
+            consumed = offset - startOffset;
+
+            return true;
+        }
+
         /// <summary>
         /// Reads binary data from the input stream.
         /// </summary>
@@ -17,14 +118,12 @@ namespace Rtfx {
         /// <param name="length">
         /// The amount of data to be read.
         /// </param>
-        public static ReadEvent ReadBinary(InputBuffer buffer, int length) {
+        public static Binary ReadBinary(InputBuffer buffer, int length) {
             if (length < 0) {
                 throw new ArgumentOutOfRangeException("length");
             }
 
-            var data = new ReadEvent();
-            data.Type = EventType.Binary;
-            data.Data = buffer.Consume(length);
+            var data = new Binary(buffer.Consume(length));
 
             if (data.Data.Length != length) {
                 throw new ParseException(string.Format(@"\bin{0} specified, got {1} bytes of data.", length,
@@ -51,85 +150,43 @@ namespace Rtfx {
         /// * Any character other than a letter or digit: not consumed as part of
         /// the control word.
         /// </remarks>
-        public static ReadEvent ReadControlWord(InputBuffer buffer) {
-            if (buffer.At(0) != '\\') {
-                throw new ParseException("Expected control word");
-            }
-            buffer.Discard(1);
+        public static ControlWord ReadControlWord(InputBuffer buffer) {
+            ControlWord word;
+            int consumed;
 
-            var word = new ReadEvent();
-
-            if (buffer.At(0) == '*') {
-                // Handle starred control word (e.g. "\*\foo").
-                buffer.Discard(1);
-                word = ReadControlWord(buffer);
-                word.Starred = true;
+            if (ParseControlWord(buffer, 0, out word, out consumed)) {
+                buffer.Consume(consumed);
                 return word;
             }
-
-            var name = buffer.ConsumeWhile(IsAsciiLetter, 32);
-
-            if (name.Length == 0 || name.Length > 32) {
-                throw new ParseException(string.Format("Invalid control word name: {0}",
-                    Encoding.UTF8.GetString(name, 0, name.Length)));
+            else {
+                throw new ParseException("Failed to parse control word.");
             }
-
-            word.Type = EventType.ControlWord;
-            word.Text = Encoding.UTF8.GetString(name, 0, name.Length);
-
-            var delim = buffer.At(0);
-            if (IsNumericDigit(delim) || delim == '-') {
-                // Parse the numeric parameter.
-                if (delim == '-') {
-                    buffer.Discard(1);
-                }
-
-                var param = buffer.ConsumeWhile(IsNumericDigit, 10);
-                word.Parameter = int.Parse(Encoding.UTF8.GetString(param, 0, param.Length));
-
-                if (delim == '-') {
-                    word.Parameter *= -1;
-                }
-            }
-
-            delim = buffer.At(0);
-            if (delim == ' ') {
-                // Consume the delimiter.
-                buffer.Discard(1);
-            }
-            // Otherwise, leave the delimiter where it is.
-
-            return word;
         }
 
         /// <summary>
         /// Reads a group end ('}') from the input stream.
         /// </summary>
-        public static ReadEvent ReadGroupEnd(InputBuffer buffer) {
+        public static GroupEnd ReadGroupEnd(InputBuffer buffer) {
             if (buffer.At(0) != '}') {
                 throw new ParseException("Expected Group End ('}')");
             }
 
             buffer.Discard(1);
 
-            return new ReadEvent {
-                Type = EventType.GroupEnd
-            };
+            return new GroupEnd();
         }
 
         /// <summary>
         /// Reads a group start ('{') from the input stream.
         /// </summary>
-        public static ReadEvent ReadGroupStart(InputBuffer buffer) {
+        public static GroupStart ReadGroupStart(InputBuffer buffer) {
             if (buffer.At(0) != '{') {
                 throw new ParseException("Expected Group Start ('{')");
             }
 
             buffer.Discard(1);
 
-            return new ReadEvent {
-                Type = EventType.GroupStart
-            };
+            return new GroupStart();
         }
 
         /// <summary>
@@ -155,7 +212,20 @@ namespace Rtfx {
                         if (IsAsciiLetter(next) || next == '*') {
                             var word = ReadControlWord(buffer);
                             if (word.Text == "bin" && word.Parameter.HasValue) {
+                                // Read binary data from the stream.
                                 return ReadBinary(buffer, word.Parameter.Value);
+                            }
+                            else if (word.Text == "u" && word.Parameter.HasValue && word.Parameter > 0) {
+                                // Consume unicode characters (control word '\u####?') as spans.
+                                // First character of next span will be replacement character; ignore.
+                                // Determine the UTF-16 representation of the code point.
+                                var span = ReadSpan(buffer);
+                                if (string.IsNullOrEmpty(span.Text)) {
+                                    throw new ParseException(
+                                        @"Encountered unicode control word ('\u####') with no replacement character.");
+                                }
+
+                                return new Span(Utf16.FromCode((uint) word.Parameter) + span.Text.Substring(1));
                             }
                             else {
                                 return word;
@@ -183,31 +253,44 @@ namespace Rtfx {
         /// <summary>
         /// Reads plain text from the input stream.
         /// </summary>
-        public static ReadEvent ReadSpan(InputBuffer buffer) {
-            var span = new MemoryStream();
+        public static Span ReadSpan(InputBuffer buffer) {
+            var span = new StringBuilder();
 
             while (true) {
                 var text = buffer.ConsumeUntil(b => _escapeChars.Contains(b));
-                span.Write(text, 0, text.Length);
+                span.Append(Encoding.UTF8.GetString(text, 0, text.Length));
 
                 byte? next;
-                if (buffer.At(0) == '\\' &&
-                    (next = buffer.At(1)).HasValue &&
-                    !IsAsciiLetter(next)) {
-                    // Handle control symbols.
-                    // TODO: Translate control symbol to special character, e.g. \~ => nbsp.
-                    span.WriteByte(next.Value);
-                    buffer.Discard(2);
+                if (buffer.At(0) == '\\' && (next = buffer.At(1)).HasValue) {
+                    ControlWord word;
+                    int consumed;
+
+                    if (ParseControlWord(buffer, 0, out word, out consumed)) {
+                        if (word.Text == "u" && word.Parameter.HasValue && word.Parameter > 0) {
+                            // Handle unicode characters.
+                            span.Append(Utf16.FromCode((uint) word.Parameter));
+                            buffer.Discard(consumed + 1);
+                        }
+                        else {
+                            break;
+                        }
+                    }
+                    else if (!IsAsciiLetter(next)) {
+                        // Handle control symbols.
+                        // TODO: Translate control symbol to special character, e.g. \~ => nbsp.
+                        span.Append((char) next.Value);
+                        buffer.Discard(2);
+                    }
+                    else {
+                        break;
+                    }
                 }
                 else {
                     break;
                 }
             }
 
-            return new ReadEvent {
-                Type = EventType.Span,
-                Text = Encoding.UTF8.GetString(span.ToArray(), 0, (int) span.Length)
-            };
+            return new Span(span.ToString());
         }
 
         private static readonly byte[] _escapeChars = {

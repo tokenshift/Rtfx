@@ -1,4 +1,6 @@
 ﻿using System.Collections.Generic;
+using System.IO;
+using System.Text;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Rtfx.Test {
@@ -96,6 +98,27 @@ namespace Rtfx.Test {
 
             Assert.AreEqual(EventType.GroupEnd, events[7].Type);
             Assert.IsNull(events[7].Text);
+        }
+
+        [TestMethod]
+        public void TestReadUnicodeSpan() {
+            using (var buffer = new MemoryStream(Encoding.UTF8.GetBytes(@"\u128799? Testing Testing")))
+            using (var reader = Reader.Create(buffer)) {
+                AlsoAssert.Span(reader, "\uD83D\uDF1F Testing Testing");
+                Assert.IsNull(reader.Next());
+            }
+
+            using (var buffer = new MemoryStream(Encoding.UTF8.GetBytes(@"Testing \u128799? Testing")))
+            using (var reader = Reader.Create(buffer)) {
+                AlsoAssert.Span(reader, "Testing \uD83D\uDF1F Testing");
+                Assert.IsNull(reader.Next());
+            }
+
+            using (var buffer = new MemoryStream(Encoding.UTF8.GetBytes(@"Testing Testing \u128799?")))
+            using (var reader = Reader.Create(buffer)) {
+                AlsoAssert.Span(reader, "Testing Testing \uD83D\uDF1F");
+                Assert.IsNull(reader.Next());
+            }
         }
     }
 }
